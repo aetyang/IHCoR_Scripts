@@ -4,6 +4,11 @@
 #2. extracts relevant columns from the raw data presented in tables within the pdf_file
 # 3. assembles all of the raw data and metadata into one csv file in long format
 # 4. Author: Anthony O. Etyang. Last update 21 Nov 2023
+#5- updates 25 Nov 2023:
+    # study_id is extracted as the first 7 characters of the pdf file name (e.g. KEN0001)
+    # additional metadata extracted as recorded/computed by the device-24hr avg heart rate, awake and asleep BPs
+    # still unable to deal with 'Day' column where some values show up as -1, -2 instead of 1,2- but this is a minor issue
+    # also dates 01-09 of the month have a different format from 10th and later, but this can be fixed in Stata/R (will attempt to update later)
 
 # import libraries that will be needed for the task
 import os
@@ -17,7 +22,7 @@ from datetime import datetime
 pdf_folder_path = "/Users/aetyang/Documents/Work folders/IHCOR Africa/Data/24hABPM/spacelabs"
 
 # Set the path for the output CSV file
-output_csv_path = "/Users/aetyang/Documents/Work folders/IHCOR Africa/Data/24hABPM/output/spacelabs_results.csv"
+output_csv_path = "/Users/aetyang/Documents/Work folders/IHCOR Africa/Data/24hABPM/output/spacelabs_results2.csv"
 
 # Create an empty DataFrame to store the extracted data
 combined_data = pd.DataFrame()
@@ -26,7 +31,7 @@ combined_data = pd.DataFrame()
 for pdf_file in os.listdir(pdf_folder_path):
     if pdf_file.endswith(".pdf"):
         # Extract identifier from file name
-        study_id = pdf_file.split('_')[0]
+        study_id = pdf_file[:7] # study_id is composed of the first seven characters of the file name
         print(study_id)
 
         # Construct the full path to the PDF file
@@ -61,12 +66,47 @@ for pdf_file in os.listdir(pdf_folder_path):
             avg_bp_match=re.search(r'Avg.:\s*(\d+/\d+) mmHg', first_page_text)
             sbp_dbp_24h=avg_bp_match.group(1)
             bp_match=re.match(r'(\d+)/(\d+)', sbp_dbp_24h)
-            #heart_rate_match=re.search(r'Heart rate \(BPM)\s*(\d+)', first_page_text)
+            heart_rate_match=re.search(r'HR\s*(\d+)', first_page_text)
+            # extract awake and asleep BPs as recorded by device
+            #awake
+            wake_periods_index = first_page_text.find("Wake periods summary")
+            wake_periods_substring = first_page_text[wake_periods_index:]
+            avg_index = wake_periods_substring.find("Avg: ")
+            avg_substring = wake_periods_substring[avg_index + len("Avg: "):]
+            awake_bp_parts = avg_substring.split()[0]
+            awake_match=re.match(r'(\d+)/(\d+)', awake_bp_parts)
+            sbp_awake=awake_match.group(1)
+            dbp_awake=awake_match.group(2)
+            #asleep
+            Sleep_periods_index = first_page_text.find("Sleep periods summary")
+            Sleep_periods_substring = first_page_text[Sleep_periods_index:]
+            avg_index = Sleep_periods_substring.find("Avg: ")
+            avg_substring = Sleep_periods_substring[avg_index + len("Avg: "):]
+            asleep_bp_parts = avg_substring.split()[0]
+            asleep_match=re.match(r'(\d+)/(\d+)', asleep_bp_parts)
+            sbp_asleep=asleep_match.group(1)
+            dbp_asleep=asleep_match.group(2)
+
+
+
+
 
             # If both start and end date are found, extract and format them
             if start_date_match and end_date_match:
-                start_date = datetime.strptime(start_date_match.group(1), '%d/%m/%Y').strftime('%d-%m-%Y')
-                end_date = datetime.strptime(end_date_match.group(1), '%d/%m/%Y').strftime('%d-%m-%Y')
+                start_date = datetime.strptime(start_date_match.group(1), '%d/%m/%Y').strftime('%Y-%m-%d')
+                end_date = datetime.strptime(end_date_match.group(1), '%d/%m/%Y').strftime('%Y-%m-%d')
+
+                # Ensure consistent two-digit day format
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%d/%m/%Y')
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y')
+
+
+
+                #start_date = datetime.strptime(start_date_match.group(1), '%d/%m/%Y'.strftime('%d-%m-%Y') if len(start_date_match.group(1).split('/')[0]) == 2 else datetime.strptime(start_date_match.group(1), '%d-%m-%Y').strftime('%d-%m-%Y')
+
+                #start_date = datetime.strptime(start_date_match.group(1), '%d/%m/%Y').strftime('%d-%m-%Y') if len(start_date_match.group(1).split('/')[0]) == 2 else datetime.strptime(start_date_match.group(1), '%d-%m-%Y').strftime('%d-%m-%Y')
+                #end_date = datetime.strptime(end_date_match.group(1), '%d/%m/%Y').strftime('%d-%m-%Y') if len(end_date_match.group(1).split('/')[0]) == 2 else datetime.strptime(end_date_match.group(1), '%d-%m-%Y').strftime('%d-%m-%Y')
+
                 serial_number = serial_number_match.group(1)
             else:
                 start_date, end_date, serial_number = None, None, None
@@ -88,6 +128,25 @@ for pdf_file in os.listdir(pdf_folder_path):
             else:
                 sbp_24h,dbp_24h = None, None
 
+            if heart_rate_match:
+                hr_24h=heart_rate_match.group(1)
+            else:
+                hr_24h=None
+
+            # awake BPs as computed by the device
+            if awake_match:
+                sbp_awake=awake_match.group(1)
+                dbp_awake=awake_match.group(2)
+            else:
+                sbp_awake, dbp_awake= None, None
+
+            # asleep BPs as computed by the device
+            if asleep_match:
+                sbp_asleep=asleep_match.group(1)
+                dbp_asleep=asleep_match.group(2)
+            else:
+                sbp_asleep, dbp_asleep= None, None
+
             # Print extracted values for debugging
             print("Start Date:", start_date_match.group(1) if start_date_match else None)
             print("End Date:", end_date_match.group(1) if end_date_match else None)
@@ -98,7 +157,16 @@ for pdf_file in os.listdir(pdf_folder_path):
             print(bp_match)
             print(sbp_24h)
             print(dbp_24h)
-            #print(heart_rate_match)
+            print(heart_rate_match)
+            print(hr_24h)
+            print(wake_periods_index)
+            print(wake_periods_substring)
+            print(avg_index)
+            print(avg_substring)
+            print(avg_bp_parts)
+            print(sbp_awake)
+            print(sbp_asleep)
+            print(dbp_asleep)
             print("Success Percentage:", successful_readings_match.group(1) if successful_readings_match else None)
             print("Success Count:", successful_readings_match.group(2) if successful_readings_match else None)
             print("Total Count:", successful_readings_match.group(3) if successful_readings_match else None)
@@ -120,10 +188,11 @@ for pdf_file in os.listdir(pdf_folder_path):
             # Combine the tables into one long table
             combined_tables = pd.concat(tables, ignore_index=True)
             print(combined_tables)
-            # Extract columns 2-5 and 8 only 
+            # Extract columns 2-5 and 8 only
             if combined_tables.shape[1] >= 5:
                 selected_columns = combined_tables.iloc[:, list(range(1, 5)) + [7]].copy()
-                #print(selected_columns)
+                selected_columns['Day'] = selected_columns['Day'].replace({(1):1, (2):2})
+                print(selected_columns)
 
                 # Create a DataFrame for metadata
                 metadata = pd.DataFrame({
@@ -136,13 +205,23 @@ for pdf_file in os.listdir(pdf_folder_path):
                     'success_percent': [success_percentage] * selected_columns.shape[0],
                     'sbp_24h': [sbp_24h] * selected_columns.shape[0],
                     'dbp_24h': [dbp_24h] * selected_columns.shape[0],
+                    'hr_24h': [hr_24h] * selected_columns.shape[0],
+                    'sbp_awake': [sbp_awake] * selected_columns.shape[0],
+                    'dbp_awake': [dbp_awake] * selected_columns.shape[0],
+                    'sbp_asleep': [sbp_asleep] * selected_columns.shape[0],
+                    'dbp_asleep': [dbp_asleep] * selected_columns.shape[0],
+
                 })
+                # Format the dates in the metadata DataFrame
+                #metadata['StartDate'] = pd.to_datetime(metadata['StartDate'], format='%d/%m/%Y').dt.strftime('%d-%m-%Y')
+                #metadata['EndDate'] = pd.to_datetime(metadata['EndDate'], format='%d/%m/%Y').dt.strftime('%d-%m-%Y')
 
                 # Concatenate metadata and selected_columns
                 result_df = pd.concat([metadata, selected_columns], axis=1)
 
                 # Append the result_df to the overall combined_data DataFrame
                 combined_data = pd.concat([combined_data, result_df], ignore_index=True)
+                combined_data = combined_data.drop(columns=['PP']) # this corrects some erratic behavior
                 print(combined_data)
             else:
                 print(f"Skipping {pdf_file} due to insufficient columns in the tables.")
@@ -161,3 +240,5 @@ if not combined_data.empty:
     print("Extraction and export completed.")
 else:
     print("No tables found in any PDF files.")
+
+  
