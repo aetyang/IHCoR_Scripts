@@ -26,7 +26,7 @@ pdf_folder_path = "/Users/aetyang/Documents/Work folders/IHCOR Africa/Data/24hAB
 # Set the path for the output CSV file
 output_csv_path = "/Users/aetyang/Documents/Work folders/IHCOR Africa/Data/24hABPM/output/spacelabs_results2.csv"
 
-# sort the pdf files by __name__
+# sort the pdf files by name-allows CSV output to be sorted
 pdf_files = sorted([f for f in os.listdir(pdf_folder_path) if f.endswith(".pdf")])
 
 #print(pdf_files)
@@ -35,7 +35,7 @@ pdf_files = sorted([f for f in os.listdir(pdf_folder_path) if f.endswith(".pdf")
 combined_data = pd.DataFrame()
 
 # loop through each PDF file in the folder
-for pdf_file in os.listdir(pdf_folder_path):
+for pdf_file in pdf_files:
     if pdf_file.endswith(".pdf"):
         # Extract identifier from file name
         study_id = pdf_file[:7] # study_id is composed of the first seven characters of the file name
