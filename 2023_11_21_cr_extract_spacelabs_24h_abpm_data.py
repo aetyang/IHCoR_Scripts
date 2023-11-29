@@ -57,7 +57,7 @@ for pdf_file in os.listdir(pdf_folder_path):
              # serial number of the device
              # number of successful readings
              # 24hr sbp, 24hr dbp as computed by the spacelabs device (this is to allow comparison with calculations based on raw data)
-             # 24hr avg heart rate (still struggling to extract this as at 21 Nov 2023)
+             # 24hr avg heart rate (still struggling to extract this as at 21 Nov 2023)-update 28 Nov 2023- this has been resolved
 
             start_date_match = re.search(r'Start:\s*(\d{2}/\d{2}/\d{4})', first_page_text)
             end_date_match = re.search(r'End:\s*(\d{2}/\d{2}/\d{4})', first_page_text)
@@ -148,34 +148,33 @@ for pdf_file in os.listdir(pdf_folder_path):
                 sbp_asleep, dbp_asleep= None, None
 
             # Print extracted values for debugging
-            print("Start Date:", start_date_match.group(1) if start_date_match else None)
-            print("End Date:", end_date_match.group(1) if end_date_match else None)
-            print("Serial Number:", serial_number_match.group(1) if serial_number_match else None)
-            print(successful_readings_match)
-            print(avg_bp_match)
-            print(sbp_dbp_24h)
-            print(bp_match)
-            print(sbp_24h)
-            print(dbp_24h)
-            print(heart_rate_match)
-            print(hr_24h)
-            print(wake_periods_index)
-            print(wake_periods_substring)
-            print(avg_index)
-            print(avg_substring)
-            print(avg_bp_parts)
-            print(sbp_awake)
-            print(sbp_asleep)
-            print(dbp_asleep)
-            print("Success Percentage:", successful_readings_match.group(1) if successful_readings_match else None)
-            print("Success Count:", successful_readings_match.group(2) if successful_readings_match else None)
-            print("Total Count:", successful_readings_match.group(3) if successful_readings_match else None)
+            # print("Start Date:", start_date_match.group(1) if start_date_match else None)
+            # print("End Date:", end_date_match.group(1) if end_date_match else None)
+            # print("Serial Number:", serial_number_match.group(1) if serial_number_match else None)
+            # print(successful_readings_match)
+            # print(avg_bp_match)
+            # print(sbp_dbp_24h)
+            # print(bp_match)
+            # print(sbp_24h)
+            # print(dbp_24h)
+            # print(heart_rate_match)
+            # print(hr_24h)
+            # print(wake_periods_index)
+            # print(wake_periods_substring)
+            # print(avg_index)
+            # print(avg_substring)
+            # print(sbp_awake)
+            # print(sbp_asleep)
+            # print(dbp_asleep)
+            # print("Success Percentage:", successful_readings_match.group(1) if successful_readings_match else None)
+            # print("Success Count:", successful_readings_match.group(2) if successful_readings_match else None)
+            # print("Total Count:", successful_readings_match.group(3) if successful_readings_match else None)
 
 
             # Print formatted values for debugging
-            print("Formatted Start Date:", start_date)
-            print("Formatted End Date:", end_date)
-            print("Formatted Serial Number:", serial_number)
+           # print("Formatted Start Date:", start_date)
+           # print("Formatted End Date:", end_date)
+           # print("Formatted Serial Number:", serial_number)
 
             # Use tabula to extract tables from the PDF-relevant tables start on P4 of the pdf files
             tables = read_pdf(pdf_path, pages=list(range(4, n_pages + 1)), multiple_tables=True)
