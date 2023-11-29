@@ -9,6 +9,8 @@
     # additional metadata extracted as recorded/computed by the device-24hr avg heart rate, awake and asleep BPs
     # still unable to deal with 'Day' column where some values show up as -1, -2 instead of 1,2- but this is a minor issue
     # also dates 01-09 of the month have a different format from 10th and later, but this can be fixed in Stata/R (will attempt to update later)
+#6 updates 27 Nov 2023
+    # sort the pdf files before extracting the tables, so that output is also sorted by study_id
 
 # import libraries that will be needed for the task
 import os
@@ -23,6 +25,11 @@ pdf_folder_path = "/Users/aetyang/Documents/Work folders/IHCOR Africa/Data/24hAB
 
 # Set the path for the output CSV file
 output_csv_path = "/Users/aetyang/Documents/Work folders/IHCOR Africa/Data/24hABPM/output/spacelabs_results2.csv"
+
+# sort the pdf files by __name__
+pdf_files = sorted([f for f in os.listdir(pdf_folder_path) if f.endswith(".pdf")])
+
+#print(pdf_files)
 
 # Create an empty DataFrame to store the extracted data
 combined_data = pd.DataFrame()
