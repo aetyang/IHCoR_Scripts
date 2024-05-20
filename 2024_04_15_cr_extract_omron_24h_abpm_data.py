@@ -3,7 +3,9 @@
 # 1. extracts metadata from Omron 24/7 24hr reports (these are in pdf format)
 #2. extracts relevant columns from the raw data presented in tables within the pdf_file
 # 3. assembles all of the raw data and metadata into one csv file in long format
-# 4. Author: Anthony O. Etyang. Last update 04 May 2024
+# 4. Author: Anthony O. Etyang. Last update 20 May 2024
+    # corrected bug that was leading to loss of some of the individual BP readings over 24 24hrs
+    # added two columns to the output -SerialNumber and Day so that output matches that one from spacelabs machine
 
 
 # import libraries that will be needed for the task
@@ -40,7 +42,7 @@ combined_data = pd.DataFrame()
 # Create an empty list to store filenames of PDFs where data extraction failed
 raw_tables_missing_list = []
 #print (pdf_files)
-#pdf_file = pdf_files[2] #test file for debugging
+pdf_file = pdf_files[2] #test file for debugging
 #print (pdf_file)
 
 # loop through each PDF file in the folder
@@ -259,12 +261,35 @@ for pdf_file in pdf_files:
             table_p2.columns=column_names_p2
             print (table_p2)
 
-            table_p2= table_p2[table_p2['Time'] >= start_time]
+            table_p2 = table_p2[(table_p2['Time'] >= start_time) | (table_p2['Time'] < 800)]
+            #table_p2= table_p2[table_p2['Time'] >= start_time] this was leading to some rows being mistakenly dropped
+            print (table_p2)
+
+            table_p2['Day'] = table_p2['Time'].apply(lambda x: 1 if 800 <= x < 2359 else 0)
+
+            # Determine the largest time where Time > 2300
+            time_greater_2300 = table_p2[table_p2['Time'] > 2300]['Time']
+            if not time_greater_2300.empty:
+                max_time_after_2300 = time_greater_2300.max()
+                print (max_time_after_2300)
+                index_max_time_after_2300 = table_p2[table_p2['Time'] == max_time_after_2300].index[0]
+                print (index_max_time_after_2300)
+                print (len(table_p2))
+
+                # Update the 'Day' value to 2 for the row immediately after the row where Time is max_time_after_2300
+                if index_max_time_after_2300 + 1 < len(table_p2):
+                    table_p2.loc[index_max_time_after_2300 + 1:, 'Day'] = 2
+
+            print (table_p2)
+
+            # Reordering columns so that 'Day' comes before 'Time'
+            table_p2 = table_p2[['Day', 'Time'] + [col for col in table_p2.columns if col not in ['Day', 'Time']]]
+
             print (table_p2)
 
 
-
             table_p2.reset_index(drop=True, inplace=True)
+            print (table_p2)
 
             # Use tabula to extract tables from the PDF-relevant tables start on P3 of the pdf files
 
@@ -312,7 +337,22 @@ for pdf_file in pdf_files:
             table_p3= table_p3[table_p3['Time'] <= end_time]
             print (table_p3)
 
+            # Check if there are any values in 'Day' column of table_p2 that are equal to 2
+            if (table_p2['Day'] == 2).any():
+                # Create a new 'Day' column in table_p3 with all values set to 2
+                table_p3['Day'] = 2
+                # Display the resulting table_p3
+                print(table_p3)
+
+            # Reordering columns so that 'Day' comes before 'Time'
+            table_p3 = table_p3[['Day', 'Time'] + [col for col in table_p3.columns if col not in ['Day', 'Time']]]
+
+            print (table_p3)
+
+
             table_p3.reset_index(drop=True, inplace=True)
+
+            print (table_p3)
 
             table_4= pd.concat([table_p2,table_p3],axis=0)
             print (table_4)
@@ -331,14 +371,14 @@ for pdf_file in pdf_files:
 
             print (total_count)
 
-            column_names = ['Time','Sys','Dia','HR']
+            column_names = ['Day','Time','Sys','Dia','HR']
             combined_tables.columns = column_names
 
             print (combined_tables)
 
             combined_tables.reset_index(drop=True, inplace=True)
 
-
+            serial_number = 0  # Omron 24/7 indentifier
             #print (study_id)
 
             #test="test.csv"
@@ -355,14 +395,14 @@ for pdf_file in pdf_files:
             print(combined_tables.shape[1]) # no of columns
             print(combined_tables.shape[0]) # no of rows
             print (combined_tables.iloc[:, list(range(0, 4))].copy())
-            if combined_tables.shape[1] >= 4:
+            if combined_tables.shape[1] >= 5:
 
                 # Create a DataFrame for metadata
                 metadata = pd.DataFrame({
                     'study_id': [study_id] * combined_tables.shape[0],
                     'StartDate': [start_date] * combined_tables.shape[0],
                     'EndDate': [end_date] * combined_tables.shape[0],
-                    #'SerialNumber': [serial_number] * combined_tables.shape[0],
+                    'SerialNumber': [serial_number] * combined_tables.shape[0],
                     'successful_readings': [success_count] * combined_tables.shape[0],
                     'total_readings': [combined_tables.shape[0]] * combined_tables.shape[0],
                     'success_percent': [success_percent] * combined_tables.shape[0],
@@ -395,6 +435,7 @@ for pdf_file in pdf_files:
                 result_df_column_names = ['study_id',
                                           'StartDate',
                                           'EndDate',
+                                          'SerialNumber',
                                           'successful_readings',
                                           'total_readings',
                                           'success_percent',
@@ -405,10 +446,11 @@ for pdf_file in pdf_files:
                                           'dbp_awake',
                                           'sbp_asleep',
                                           'dbp_asleep',
+                                          'Day',
                                           'Time',
                                           'Sys',
                                           'Dia',
-                                          'HR'
+                                          'HR',
                                                     ]
 
                 result_df.columns = result_df_column_names
@@ -454,3 +496,4 @@ if raw_tables_missing_list:
     print("Failed PDFs list exported.")
 else:
     print("No PDFs failed during extraction.")
+
